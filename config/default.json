@@ -15,5 +15,9 @@
     "hostname": "localhost",
     "port": 27017,
     "database": "govuk_content_publisher"
+  },
+  "asset-api": {
+    "hostname": "odi-asset-manager.herokuapp.com",
+    "secure": true
   }
 }

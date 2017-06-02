@@ -4,8 +4,7 @@ const app = require('../app');
 const http = require('http');
 const config = require('config');
 
-// Get port from environment and store in Express.
-const port = normalizePort(config.get('express.port'));
+const port = find_port();
 
 // Fire up the server
 const server = http.createServer(app);
@@ -48,7 +47,16 @@ function onListening() {
 } // onListening
 
 ///////////////////
-function normalizePort(val) {
+function find_port() {
+  if (process.env.PORT) {
+    console.log("Using PORT environment variable");
+    return normalize_port(process.env.PORT);
+  } // if ...
+
+  return normalize_port(config.get('express.port'));
+} // find_port
+
+function normalize_port(val) {
   const port = parseInt(val, 10);
 
   if (isNaN(port)) // named pipe (we hope!)
@@ -58,4 +66,4 @@ function normalizePort(val) {
     return port;
 
   return false;
-} // normalizePort
+} // normalize_port

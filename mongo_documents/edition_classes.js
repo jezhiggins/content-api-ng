@@ -56,17 +56,21 @@ class Edition {
 
     return section ? `/${section}/${this.slug}` : `${this.slug}`;
   } // tag_to_rendering_path
-  /*
-    def tag_to_rendering_path(url_map)
-      section = artefact.tags.map{|x| url_map[x.tag_id]}.compact.uniq.join
-      section = url_map[:default] if section.blank? && url_map[:default]
-      "#{'/' unless section.blank?}#{section}/#{slug}"
-    end
-  */
+
+  get asset_ids() {
+    const potential_fields = ['module_image'].concat(this.asset_fields);
+    const fields = potential_fields.filter(p => this[`${p}_id`]);
+    const ids = fields.map(f => { return { field: f, id: this[`${f}_id`] } });
+    return ids;
+  } // asset_fields
+
+  get asset_fields() { return []; }
+
+  get event_type() { return undefined; }
 } // class Edition
 
 class ArticleEdition extends Edition {
-  constructor(edition) {
+   constructor(edition) {
     super(edition);
   } // constructor
 
@@ -127,6 +131,8 @@ class CreativeWorkEdition extends Edition {
   get whole_body() { return this.description; }
 
   get rendering_path() { return `/culture/${this.slug}`; }
+
+  get asset_fields() { return ['file', 'thumbnail']; }
 } // CreativeWorkEdition
 
 class EventEdition extends Edition {
@@ -152,6 +158,13 @@ class EventEdition extends Edition {
       'default': 'events'
     });
   } // rendering_path
+
+  get event_type() {
+    return stream_from(this.artefact.tags).
+      filter(t => t.tag_type == 'event').
+      map(t => t.tag_id).
+      firstOrDefault();
+  } // event_type
 } // EventEdition
 
 class JobEdition extends Edition {
@@ -173,6 +186,8 @@ class NodeEdition extends Edition {
 
   get rendering_path() { return `/nodes/${this.slug}`; }
 
+  get asset_fields() { return ['logo']; }
+
   get latlng() { return [location[0], location[1]].join(','); }
 } // class NodeEdition
 
@@ -189,6 +204,8 @@ class OrganizationEdition extends Edition {
       'member': 'members'
     });
   } // rendering_path
+
+  get asset_fields() { return ['logo']; }
 } // class OrganizationEdition
 
 class PersonEdition extends Edition {
@@ -204,6 +221,8 @@ class PersonEdition extends Edition {
       'summit-speaker-2016': 'summit/2016/speakers'
     });
   } // render_path
+
+  get asset_fields() { return ['image']; }
 } // class PersonEdition
 
 class ReportEdition extends Edition {
@@ -214,6 +233,8 @@ class ReportEdition extends Edition {
   get whole_body() { return ''; }
 
   get rendering_path() { return `/reports/${this.slug}`; }
+
+  get asset_fields() { return ['report']; }
 } // class ReportEdition
 
 class TimedItemEdition extends Edition {

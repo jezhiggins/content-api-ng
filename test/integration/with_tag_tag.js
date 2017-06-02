@@ -16,7 +16,7 @@ describe('With Tag, tag param', () => {
   expect_404('multiple tag instances found', '?tag=ambiguity');
 
   expect_redirect('to typed url', '?tag=trout', '?article=trout');
-  expect_redirect('to typed url, ignoring keywords', '?tag=farmers', '?section=farmers');
+  expect_redirect('to typed url', '?tag=farmers', '?section=farmers');
   expect_redirect('to typed url with sort', '?tag=trout&sort=date', '?article=trout&sort=date');
   expect_redirect('to typed url with order by', '?tag=trout&order_by=date', '?article=trout&order_by=date');
   expect_redirect('to typed url with author', '?tag=trout&author=jez', '?article=trout&author=jez');
@@ -24,12 +24,12 @@ describe('With Tag, tag param', () => {
   expect_redirect('when filtering by multiple tags', '?tag=crime,business', '?section=crime%2Cbusiness');
 
   /////////////////////////////////////////
-  before(() => {
-    tags_collection.insert(test_tag_data);
+  before(async() => {
+    await tags_collection.insert(test_tag_data);
   });
 
-  after(() => {
-    tags_collection.remove({});
+  after(async() => {
+    await tags_collection.remove({});
   });
 });
 

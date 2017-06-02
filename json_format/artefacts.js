@@ -1,7 +1,7 @@
 const stream_of = require('rillet').of;
 const stream_from = require('rillet').from;
 const tag_format = require('./tags.js');
-const markdown = require('markdown').markdown;
+const showdown = require('showdown');
 
 function edition_or_artefact(artefact, edition_field, artefact_field) {
   if (artefact.edition && artefact.edition[edition_field])
@@ -9,25 +9,17 @@ function edition_or_artefact(artefact, edition_field, artefact_field) {
   return artefact[artefact_field];
 } // edition_field
 
-function minimal_artefact_format(artefact, url_helper) {
+function basic_artefact_format(artefact, url_helper) {
   return {
     'id': url_helper.artefact_url(artefact),
     'web_url': url_helper.artefact_web_url(artefact),
     'slug': artefact.slug,
     'title': edition_or_artefact(artefact, 'title', 'name'),
-    'format': underscorify(edition_or_artefact(artefact, 'format', 'kind'))
+    'format': underscorify(edition_or_artefact(artefact, 'format', 'kind')),
+    'updated_at': updated_date(artefact),
+    'created_at': created_date(artefact),
+    'tag_ids': artefact.tag_ids
   };
-} // minimal_artefact_format
-
-function basic_artefact_format(artefact, url_helper) {
-  return merge(
-    minimal_artefact_format(artefact, url_helper),
-    {
-      'updated_at': updated_date(artefact),
-      'created_at': created_date(artefact),
-      'tag_ids': artefact.tag_ids
-    }
-  );
 } // basic_artefact_format
 
 function related_artefacts_format(artefact, url_helper) {
@@ -61,7 +53,7 @@ function external_links_format(artefact, url_helper) {
 
 function author_format(artefact, url_helper) {
   const author = artefact.author_artefact;
-  if (!author)
+  if (!author || !author.edition)
     return {}
 
   return {
@@ -100,6 +92,24 @@ function organization_format(artefact, url_helper) {
   });
 } // organization_format
 
+function asset_format(asset) {
+  if (!asset)
+    return {};
+  return {
+    "web_url": asset["file_url"],
+    "versions": asset["file_versions"],
+    "content_type": asset["content_type"],
+    "title": asset["title"],
+    "source": asset["source"],
+    "description": asset["description"],
+    "creator": asset["creator"],
+    "attribution": asset["attribution"],
+    "subject": asset["subject"],
+    "license": asset["license"],
+    "spatial": asset["spatial"]
+   };
+} // asset_format
+
 //////////////////////////////////
 function format(artefact, url_helper) {
   const pretty = basic_artefact_format(artefact, url_helper);
@@ -118,6 +128,10 @@ function format(artefact, url_helper) {
   pretty.details.organizations = pretty.organizations = organization_format(artefact, url_helper);
   pretty.details.author = pretty.author = author_format(artefact, url_helper);
   pretty.details.artist = artist_format(artefact, url_helper);
+
+  if (artefact.asset_ids)
+    for (const {field} of artefact.asset_ids)
+      pretty.details[field] = asset_format(artefact.assets[field]);
 
   return pretty;
 } // format
@@ -145,14 +159,36 @@ function merge_fields(destination, field_names, source) {
     map(f => [f, source[f]]).
     map(fv => convertIfGovspeak(...fv)).
     map(fv => convertIfDate(...fv)).
+    map(fv => attachmentToImage(...fv)).
     forEach(([f, v]) => destination[f] = v);
 } // merge_fields
+
+function attachmentToImage(f,v) {
+  return[f, attachmentImage(v)];
+}
+
+function attachmentImage(v) {
+  const str_replace = require('str_replace');
+  var pattern = /attachment\[([^,;]*),([^,;]*),([^,;]*),([^\]]*)]/gm;
+  while (match = pattern.exec(v)) {
+    match[2] = str_replace('<em>','_',match[2]);
+    match[2] = str_replace('</em>','_',match[2]);
+    v = str_replace(match[0].trim(),'<img src="'+match[2].trim()+'" alt="'+match[3].trim()+'" class="'+match[4].trim()+'" id="'+match[1].trim()+'">',v);
+  }
+  var pattern = /attachment\[([^,;]*),([^,;]*),([^,;]*)]/gm;
+  while (match = pattern.exec(v)) {
+      match[2] = str_replace('<em>','_',match[2]);
+      match[2] = str_replace('</em>','_',match[2]);
+      v = str_replace(match[0].trim(),'<img src="'+match[2].trim()+'" alt="'+match[3].trim()+'" id="'+match[1].trim()+'">',v);
+  }
+  return v;
+}
 
 function convertIfGovspeak(f, v) {
   if (GOVSPEAK.indexOf(f) == -1)
     return [f, v];
-
-  return [f, markdown.toHTML(v)];
+  converter = new showdown.Converter();
+  return [f, converter.makeHtml(v)];
 } // convertIfGovspeak
 
 function convertIfDate(f, v) {
@@ -268,7 +304,8 @@ const ODI_FIELDS = [
   'beta',
   'join_date',
   'area',
-  'host'
+  'host',
+  'event_type'
 ];
 
 const GOVSPEAK = [

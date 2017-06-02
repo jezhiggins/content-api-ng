@@ -7,13 +7,11 @@ const Artefacts = require('../mongo_documents/artefacts.js');
 const Editions = require('../mongo_documents/editions.js');
 const singular = require('pluralize').singular;
 const stream_from = require('rillet').from;
-const result_set = require('../json_format/result_set.js');
-const format_artefact = require('../json_format/artefacts.js');
 
 //////////////////////////////////////////////////////////////
 async function tag_param(req, res, db, url_helper) {
   const tag = req.query["tag"];
-  const tags = await Tags.by_ids(tag, db);
+  const tags = (await Tags.by_ids(tag, db)).filter(t => t.tag_type != 'keyword');
 
   const modifiers = modifier_params(req);
   const possible_tags = tags.filter(uniq_by_tag_type());
@@ -30,9 +28,16 @@ async function tag_param(req, res, db, url_helper) {
 function type_param(req, res, db, url_helper) {
   const type = singular(req.query["type"]);
   const description = `All content with the ${type} type`;
-  const artefacts = Artefacts.by_type(db, type, req.query["role"], { sort: req.query["sort"] });
+  const params = { sort: 'slug' }
+  if (req.query["sort"])
+    params.sort = req.query["sort"];
+  if (req.query["page"]) {
+    params.limit = 30;
+    params.skip = (req.query["page"]-1) * 30;
+  } // if ...
+  const artefacts = Artefacts.by_type(db, type, req.query["role"], params);
 
-  send_artefacts(res, artefacts, description, db, url_helper);
+  send_artefacts(req, res, artefacts, description, db, url_helper);
 } // type_param
 
 async function handle_params(req, res, db, url_helper) {
@@ -50,27 +55,23 @@ async function handle_params(req, res, db, url_helper) {
   if (tags.length == 0) // nope!
     return error_404(res);
 
-  const tag_ids = tags.map(t => t.tag_id).join(',');
+  const tag_ids = stream_from(tags).map(t => t.tag_id).uniq().join(',');
 
-  const description = `All content with the ${tag_ids} ${tags[0].tag_type}`;
+  const sort_order = req.query['sort'] ? req.query['sort'] : 'slug';
+
+  const description = `All content with the '${tag_ids}' ${tags[0].tag_type}`;
   const artefacts = Artefacts.by_tags(db, tag_ids, req.query["role"],
-				      { sort: req.query["sort"],
+				      { sort: sort_order,
 					filter: tag_extra_params(req) });
 
-  send_artefacts(res, artefacts, description, db, url_helper);
+  send_artefacts(req, res, artefacts, description, db, url_helper);
 } // handle_params
 
-function send_artefacts(res, artefacts, description, db, url_helper) {
+function send_artefacts(req, res, artefacts, description, db, url_helper) {
   if (!artefacts)
     return error_404(res);
 
-  artefacts.
-    then(as => as.map(a => format_artefact(a, url_helper))).
-    then(as => res.json(result_set(as, description))).
-    catch(err => {
-      console.log(err);
-      error_503(res);
-    });
+  artefacts.then(as => res.artefacts(req, as, description, url_helper));
 } // artefacts
 
 function with_tag_formatter(req, res, db, url_helper) {

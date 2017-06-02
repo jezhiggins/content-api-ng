@@ -3,23 +3,23 @@ const Editions = require('./editions.js');
 const stream_from = require('rillet').from;
 const wrap_artefact = require('./artefact_class.js');
 
-function by_type(db, type, role = 'odi', { sort, summary = false, limit } = {}) {
+function by_type(db, type, role = 'odi', { sort, summary = false, limit, skip } = {}) {
   const query = {
     'kind': type,
     'tag_ids': role,
     'state': 'live'
   };
 
-  return find(db, query, { sort: sort, summary: summary, limit: limit });
+  return find(db, query, { sort: sort, summary: summary, limit: limit, skip: skip });
 } // by_type
 
 function format_filter(filter = {}) {
-  const query = [];
+  const query = {};
 
   for (const [k,v] of Object.entries(filter)) {
     const f = (v != "all") ? v : { "$nin" : ['', null] };
-    query.push({k, v});
-  }
+    query[k] = f;
+  } // for ...
 
   return query;
 } // format_filter
@@ -34,18 +34,17 @@ function by_ids_or_slugs(db, ids, slugs) {
 } // by_ids_or_slugs
 
 function by_tags(db, tags, role = 'odi',
-		 { sort, filter = {}, summary = false, limit } = {}) {
-  const tag_query = tags.split(',').concat([role]).map(t => { return {'tag_ids': t}; });
-  const filter_query = format_filter(filter);
+		 { sort, filter = {}, summary = false, limit, skip } = {}) {
+  const tag_query = tags.split(',').map(t => { return {'tag_ids': t}; });
 
-  const field_query = tag_query.concat(filter_query);
+  const query = format_filter(filter);
+  query['$and'] = [
+    {'$or': tag_query },
+    { 'tag_ids': role },
+  ];
+  query['state'] = 'live';
 
-  const query = {
-    '$and': field_query,
-    'state': 'live'
-  };
-
-  return find(db, query, { sort: sort, summary: summary, limit: limit });
+  return find(db, query, { sort: sort, summary: summary, limit: limit, skip: skip });
 } // by_tags
 
 async function by_slug(db, slug, role = 'odi', { summary = false } = {}) {
@@ -57,10 +56,16 @@ async function by_slug(db, slug, role = 'odi', { summary = false } = {}) {
   return results.length ? results[0] : null;
 } // by_slug
 
-async function find(db, query, { sort, summary = false, limit }) {
-  const projection = (sort == 'date') ? { 'sort': {'created_at': -1} } : undefined;
+async function find(db, query, { sort, summary = false, limit, skip }) {
+  const projection = { }
+  if (sort == 'date')
+    projection.sort = {'created_at': -1};
+  if (sort == 'slug')
+    projection.sort = {'slug': 1};
   if (projection && limit)
     projection.limit = limit;
+  if (projection && skip)
+    projection.skip = skip;
   const artefacts = await do_find(db, query, projection);
 
   await populate_tags(db, artefacts);
@@ -69,6 +74,7 @@ async function find(db, query, { sort, summary = false, limit }) {
     return artefacts;
 
   await populate_related(db, artefacts);
+  await populate_assets(db, artefacts);
 
   return artefacts;
 } // find
@@ -108,8 +114,11 @@ async function populate_tags(db, artefacts) {
 
 async function fetch_all_tags(all_tag_ids, db) {
   const tags = {};
-  for (const tag of await Tags.scoped(all_tag_ids, db))
+  for (const tag of await Tags.scoped(all_tag_ids, db)) {
+    if (tags[tag.tag_id])
+      continue;
     tags[tag.tag_id] = tag;
+  } // for ...
   return tags;
 } // all_tags
 
@@ -177,7 +186,7 @@ function populate_artefact_related(artefact, all_related) {
   if (artefact.author && all_related[artefact.author])
     artefact.author_artefact = all_related[artefact.author];
 
-  artefact.organizations = gather_related(all_related, artefact.organization_name);
+  artefact.organizations = gather_related(all_related, artefact.organization_name).filter(o => o.edition);
 
   if (artefact.edition && artefact.edition.artist && all_related[artefact.edition.artist])
     artefact.artist = all_related[artefact.edition.artist];
@@ -193,3 +202,50 @@ function gather_related(all_related, ids_or_slugs) {
     } // for ...
   return related;
 } // gather_related
+
+/////////////////////////////////////////////////
+async function populate_assets(db, artefacts) {
+  if (!db.asset_api_client)
+    return;
+
+  const all_asset_ids =
+	stream_from(artefacts).
+	map(a => a.asset_ids).
+	flatten().
+	filter(a => a).
+	map(a => a.id).
+	filter(a => a).
+	uniq().
+	toArray();
+
+  if (all_asset_ids.length == 0)
+    return;
+
+  const all_assets = await fetch_all_assets(db.asset_api_client, all_asset_ids);
+  artefacts.forEach(a => populate_artefact_assets(a, all_assets));
+  return artefacts;
+} // populate_assets
+
+async function fetch_all_assets(asset_api_client, asset_ids) {
+  const assets = {};
+
+  const fetched_assets = await asset_api_client.get(asset_ids);
+  for (const asset of fetched_assets)
+    if (asset)
+      assets[asset.id] = asset;
+
+  return assets;
+} // fetch_all_assets
+
+function populate_artefact_assets(artefact, all_assets) {
+  if (!artefact.asset_ids)
+    return;
+
+  const assets = { }
+  for (const {field, id} of artefact.asset_ids) {
+    const asset = all_assets[id];
+    assets[field] = asset;
+  } // for ...
+
+  artefact.assets = assets;
+} // populate_artefact_assets

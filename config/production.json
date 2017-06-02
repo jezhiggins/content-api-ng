@@ -2,7 +2,10 @@
   "api": {
     "hostname": "contentapi.theodi.org",
     "port": "",
-    "prefix", "",
-    "secure", true
+    "prefix": "",
+    "secure": true
+  },
+  "frontend": {
+    "webroot": "http://theodi.org"
   }
 }

@@ -1,3 +1,4 @@
+const stream_from = require('rillet').from;
 const singular = require('pluralize').singular;
 
 const known_tag_types = [
@@ -55,5 +56,19 @@ async function with_counts(db) {
   return known_tag_types.map(tt => tag_type_with_count(tt, counts));
 } // tag_types
 
+function from_plural(plural) {
+  return stream_from(known_tag_types).
+    filter(t => t.plural == plural).
+    firstOrDefault();
+} // from_plural
+
+function from_singular(singular) {
+  return stream_from(known_tag_types).
+    filter(t => t.singular == singular).
+    firstOrDefault();
+} // from_singular
+
 exports.with_counts = with_counts;
 exports.tag_types = known_tag_types;
+exports.from_plural = from_plural;
+exports.from_singular = from_singular;

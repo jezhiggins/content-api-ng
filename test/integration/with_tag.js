@@ -22,7 +22,7 @@ describe('With Tag', () => {
       const article = body.results[0];
       equal(article.title, 'Farmers Rule');
       assert(article.tag_ids.some(t => t == 'farmers'));
-      equal(article.details.description, '<p>A description of farmers</p>');
+      equal(article.details.description.trim(), '<p>A description of farmers</p>');
       equal(article.details.excerpt, 'A really long description of farmers');
     }
   );
@@ -60,10 +60,10 @@ describe('With Tag', () => {
       });
   });
 
-  after(() => {
-    tags_collection.remove({});
-    artefacts_collection.remove({});
-    editions_collection.remove({});
+  after(async() => {
+    await tags_collection.remove({});
+    await artefacts_collection.remove({});
+    await editions_collection.remove({});
   });
 
 });

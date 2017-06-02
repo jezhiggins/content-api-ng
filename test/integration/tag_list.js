@@ -42,12 +42,12 @@ describe('Tag List', () => {
   });
 
   /////////////////////////////////////////
-  before(() => {
-    tags_collection.insert(test_tag_data);
+  before(async() => {
+    await tags_collection.insert(test_tag_data);
   });
 
-  after(() => {
-    tags_collection.remove({});
+  after(async() => {
+    await tags_collection.remove({});
   });
 });
 

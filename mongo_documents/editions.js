@@ -5,7 +5,7 @@ async function find(db, query, projection) {
   const editions = [];
   const editions_collection = db.get('editions');
   await editions_collection.find(query).
-	each((edition, {close, pause, resume}) => {
+        each((edition, {close, pause, resume}) => {
 	  editions.push(wrap_edition(edition));
 	  resume();
 	});
@@ -34,7 +34,7 @@ async function for_artefacts(db, artefacts, state = 'published') {
 
 async function for_artefact(db, artefact, version_number = null) {
   if (version_number)
-    return findOne(db, { 'slug': artefact.slug, 'version_number': version_number });
+    return findOne(db, { 'slug': artefact.slug, 'version_number': Number(version_number) });
 
   return await findOne(db, {'slug': artefact.slug, 'state': 'published'});
   if (!edition)
@@ -61,5 +61,6 @@ async function attach_edition(db, artefact, version_number) {
   return edition;
 } // attach_edition
 
+exports.find = find;
 exports.map_onto = map_onto;
 exports.for_artefact = attach_edition;

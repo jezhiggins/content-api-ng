@@ -16,6 +16,8 @@ class Artefact {
   } // type
   get edition() { return this.edition_; }
 
+  get asset_ids() { return this.edition_ ? this.edition_.asset_ids : undefined }
+
   set edition(edition) {
     this.edition_ = edition;
     if (edition)

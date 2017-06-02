@@ -2,7 +2,6 @@ const error_404 = require('./error_404.js');
 const error_410 = require('./error_410.js');
 const Artefacts = require('../mongo_documents/artefacts.js');
 const Editions = require('../mongo_documents/editions.js');
-const format_artefact = require('../json_format/artefacts.js');
 
 async function single_artefact_formatter(slug, req, res, db, url_helper) {
   const role = req.query['role'];
@@ -16,9 +15,7 @@ async function single_artefact_formatter(slug, req, res, db, url_helper) {
   if (edition_no_good(res, edition, version))
     return;
 
-  // attach assets here
-
-  res.json(format_artefact(artefact, url_helper));
+  res.artefact(req, artefact, url_helper);
 } // artefact_formatter
 
 module.exports = single_artefact_formatter;

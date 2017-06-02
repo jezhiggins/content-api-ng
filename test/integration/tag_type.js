@@ -36,8 +36,8 @@ describe("Tag Types", () => {
   });
 
   ////////////////////////////
-  before(() => {
-    tags_collection.insert([
+  before(async() => {
+    await tags_collection.insert([
       {
 	"title": "Team",
 	"tag_type": "person",
@@ -56,8 +56,8 @@ describe("Tag Types", () => {
     ]);
   }); // before
 
-  after(() => {
-    tags_collection.remove({});
+  after(async() => {
+    await tags_collection.remove({});
   }); // after
 });
 

@@ -62,9 +62,9 @@ describe('Artefact external links', () => {
     ])
   });
 
-  after(() => {
-    artefacts_collection.remove({});
-    editions_collection.remove({});
+  after(async() => {
+    await artefacts_collection.remove({});
+    await editions_collection.remove({});
   });
 });
 
